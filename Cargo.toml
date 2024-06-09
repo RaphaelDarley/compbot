@@ -1,0 +1,11 @@
+[package]
+name = "compbot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+mysql = "25.0.1"
+serenity = "0.12.2"
+sqlx = { version = "0.7.4", features = ["runtime-tokio", "tls-rustls", "mysql"] }
+tokio = { version = "1.38.0", features = ["full"] }
