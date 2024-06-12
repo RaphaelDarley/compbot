@@ -1,0 +1,9 @@
+CREATE TABLE `wp_postmeta` (
+  `code_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `post_id` bigint(20) unsigned NOT,
+  `email` text NOT NULL,
+  `code` unsigned int NOT NULL,
+  `sent_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`code_id`),
+  KEY `post_id` (`post_id`),
+);
