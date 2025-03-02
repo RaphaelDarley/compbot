@@ -1,10 +1,10 @@
 use std::env;
 
 use chrono::Utc;
-use compbot::db_utils::email_lookup;
+use compbot::db_utils::{email_lookup, NameType};
 use compbot::{
-    add_member_role, check_code, commands, is_verified, respond_to_verified, send_verif_email,
-    verify_member, VERIF_CODES,
+    add_member_role, check_code, commands, is_verified, lookup_name, respond_to_verified,
+    send_verif_email, verify_member, VERIF_CODES,
 };
 use rand::Rng;
 use serenity::all::{
@@ -154,6 +154,8 @@ impl EventHandler for Handler {
                     .await
                     .unwrap();
                 }
+                "lookup_first" => lookup_name(&ctx, cmd, NameType::First).await,
+                "lookup_last" => lookup_name(&ctx, cmd, NameType::Last).await,
                 _ => {}
             },
             Interaction::Modal(_) => {}

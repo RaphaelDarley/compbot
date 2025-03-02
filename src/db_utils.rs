@@ -58,3 +58,48 @@ WHERE
 
     row.map(Into::into)
 }
+
+pub enum NameType {
+    First,
+    Last,
+}
+
+impl NameType {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            NameType::First => "first_name",
+            NameType::Last => "last_name",
+        }
+    }
+}
+
+pub async fn name_lookup(name: &str, name_type: NameType) -> Vec<CSUser> {
+    let mut conn = get_conn().await;
+    let name_type = name_type.to_str();
+
+    let query_str = format!(
+        r#"
+    SELECT 
+    email.post_id AS id,
+    first_name.meta_value AS first_name,
+    last_name.meta_value AS last_name
+FROM 
+    wp_postmeta email
+JOIN 
+    wp_postmeta first_name ON email.post_id = first_name.post_id AND first_name.meta_key = '_billing_first_name'
+JOIN 
+    wp_postmeta last_name ON email.post_id = last_name.post_id AND last_name.meta_key = '_billing_last_name'
+WHERE 
+    email.meta_key = '_billing_email'
+    AND {}.meta_value = ?;"#,
+        name_type
+    );
+
+    let row: Vec<(u64, String, String)> = sqlx::query_as(&query_str)
+        .bind(name)
+        .fetch_all(&mut conn)
+        .await
+        .unwrap();
+
+    row.into_iter().map(Into::into).collect()
+}

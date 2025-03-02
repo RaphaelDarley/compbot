@@ -1,9 +1,12 @@
+use std::fmt::Write;
+
 use chrono::{DateTime, TimeDelta, Utc};
+use db_utils::NameType;
 use hashbrown::HashMap;
 use once_cell::sync::Lazy;
 use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateInteractionResponse, CreateInteractionResponseMessage, Member, UserId,
+    CreateInteractionResponse, CreateInteractionResponseMessage, Member, Permissions, UserId,
 };
 use tokio::sync::Mutex;
 
@@ -78,7 +81,7 @@ pub fn commands() -> Vec<CreateCommand> {
             CreateCommandOption::new(
                 CommandOptionType::String,
                 "email",
-                "the email you used to joing CompSoc",
+                "the email you used to join CompSoc",
             )
             .required(true),
         );
@@ -88,12 +91,73 @@ pub fn commands() -> Vec<CreateCommand> {
             CreateCommandOption::new(
                 CommandOptionType::Integer,
                 "code",
-                "the email you used to joing CompSoc",
+                "the email you used to join CompSoc",
             )
             .required(true),
         );
+    let lookup_first = CreateCommand::new("lookup_first")
+        .description("search membership database by first name")
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::String,
+                "name",
+                "first name to search with",
+            )
+            .required(true),
+        )
+        .default_member_permissions(Permissions::MANAGE_ROLES);
+    let lookup_last = CreateCommand::new("lookup_last")
+        .description("search membership database by last name")
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::String,
+                "name",
+                "last name to search with",
+            )
+            .required(true),
+        )
+        .default_member_permissions(Permissions::MANAGE_ROLES);
 
-    vec![verify, verify_email_send, verify_email_code]
+    vec![
+        verify,
+        verify_email_send,
+        verify_email_code,
+        lookup_first,
+        lookup_last,
+    ]
+}
+
+pub async fn lookup_name(ctx: &Context, cmd: CommandInteraction, name_type: NameType) {
+    let Some(member) = &cmd.member else {
+        return;
+    };
+
+    if !has_role(&ctx, &member, "Committee").await {
+        return;
+    }
+
+    let name = cmd.data.options.get(0).unwrap().value.as_str().unwrap();
+
+    let found = db_utils::name_lookup(name, name_type).await;
+
+    let mut msg_acc = String::from("Found Members:");
+
+    for user in found {
+        write!(
+            &mut msg_acc,
+            "\n{}: {} {}",
+            user.id, user.first_name, user.last_name
+        )
+        .unwrap();
+    }
+
+    let reply = CreateInteractionResponse::Message(
+        CreateInteractionResponseMessage::new()
+            .ephemeral(true)
+            .content(msg_acc),
+    );
+
+    cmd.create_response(&ctx, reply).await.unwrap();
 }
 
 pub async fn add_member_role(ctx: &Context, member: &Member) {
@@ -129,9 +193,13 @@ pub async fn verify_member(ctx: &Context, member: &Member) -> Option<bool> {
 }
 
 pub async fn is_verified(ctx: &Context, member: &Member) -> bool {
+    has_role(ctx, member, "Member").await
+}
+
+pub async fn has_role(ctx: &Context, member: &Member, role: &str) -> bool {
     let guild_id = member.guild_id;
     let guild = guild_id.to_partial_guild(&ctx).await.unwrap();
-    let member_role = guild.role_by_name("Member").unwrap();
+    let member_role = guild.role_by_name(role).unwrap();
     member.roles.contains(&member_role.id)
 }
 
